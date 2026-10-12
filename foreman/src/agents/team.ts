@@ -37,7 +37,7 @@ import { renderDiffText } from '../diff.js';
 import { formatInbox } from '../bus.js';
 import { descendantsOf, killSnapshot, killTree, orphansOf, processTable, type ProcEntry } from '../util/proc.js';
 import { truncate } from '../util/text.js';
-import { leadSystemPrompt, planPrompt, RESUME_PROMPT, reviewPrompt, workerSystemPrompt, workPrompt } from './prompts.js';
+import { leadSystemPrompt, planPrompt, RESUME_PROMPT, reviewPrompt, workerSystemPrompt, workPrompt, zoneWorkerSystemPrompt } from './prompts.js';
 import { fetchPulls, githubOrigin, prRefs, pullBriefs, type PullRequest } from '../pulls.js';
 import type { Engine, EngineId, PermissionGate, Role, TurnStats } from './engine.js';
 import { agentTools, type ToolHooks, type TurnHandle } from './tools.js';
@@ -788,7 +788,8 @@ export class TeamBackend implements Backend {
       if (role === 'lead') systemAppend = leadSystemPrompt(this.fm, this.team);
       else {
         const t = this.fm.tasks.require(job.taskId!);
-        systemAppend = workerSystemPrompt(this.fm, agentId, this.fm.repos.requireWorktree(t.repoId!, t.worktree!));
+        const wt = this.fm.repos.requireWorktree(t.repoId!, t.worktree!);
+        systemAppend = t.zone ? zoneWorkerSystemPrompt(this.fm, agentId, wt, t.zone) : workerSystemPrompt(this.fm, agentId, wt);
       }
       const model = engine.model(role);
       this.fm.agentLog(agentId, 'text', `${resume ? 'Resuming' : 'Starting'} ${job.kind}${job.taskId ? ` ${job.taskId}` : ''} (${engine.id === 'claude' ? model : `${engine.label} ${model}`})`);
