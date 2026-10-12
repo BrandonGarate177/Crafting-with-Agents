@@ -32,6 +32,7 @@ import { classifyToolUse, describeRuleKey, describeToolCall } from '../policy.js
 import type { BackendName, Decision, Goal, Task } from '../protocol.js';
 import { MERGE_OPTIONS, PERMISSION_OPTIONS } from '../protocol.js';
 import type { TestResult } from '../repos.js';
+import { readBlueprint, type BlueprintResult } from '../blueprint.js';
 import { renderDiffText } from '../diff.js';
 import { formatInbox } from '../bus.js';
 import { descendantsOf, killSnapshot, killTree, orphansOf, processTable, type ProcEntry } from '../util/proc.js';
@@ -96,6 +97,12 @@ interface Running {
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** Fold a zone task's blueprint check into its CI result. Clamp and palette notes are not failures. */
+function withBlueprint(ci: TestResult, bp: BlueprintResult, file: string): TestResult {
+  if (bp.ok) return ci;
+  return { ...ci, pass: false, command: `${ci.command} + ${file} check`, output: ci.pass ? bp.error : `${ci.output}\n\n${bp.error}`, failures: [...ci.failures, file] };
+}
 
 function alive(child: ChildProcess | undefined): child is ChildProcess {
   return !!child && child.exitCode === null && child.signalCode === null;
@@ -1000,6 +1007,13 @@ export class TeamBackend implements Backend {
       this.fm.repos.setCi(t.repoId, 'running');
       if (worker) this.fm.agentLog(worker, 'tool', `CI: ${this.cfg.ciCommand ?? this.fm.repos.detectTestCommand(this.fm.repos.requireWorktree(t.repoId, t.worktree).path) ?? '(no tests)'}`);
       ci = await this.fm.repos.runTests(t.repoId, t.worktree, this.cfg.ciCommand);
+      if (t.zone) {
+        // a zone task's blueprint is part of its CI: a file the parser rejects fails it like a failing test
+        const file = `zones/${t.zone.letter}.json`;
+        const bp = readBlueprint(this.fm.repos.requireWorktree(t.repoId, t.worktree).path, t.zone);
+        ci = withBlueprint(ci, bp, file);
+        this.fm.bus.feed('ci', `${t.id}: blueprint ${file} ${bp.ok ? `ok, ${bp.fills.length} fills${bp.notes.length ? ` (${bp.notes.join(' ')})` : ''}` : `fail: ${bp.error}`}`, { ...(worker ? { agentId: worker } : {}) });
+      }
       this.fm.tasks.update(t.id, { ci: ci.pass ? 'pass' : 'fail' });
       this.fm.repos.setCi(t.repoId, ci.pass ? 'pass' : 'fail');
       if (worker) this.fm.agentLog(worker, ci.pass ? 'result' : 'error', `CI ${ci.pass ? 'passed' : 'FAILED'} (${(ci.durationMs / 1000).toFixed(1)}s)\n${ci.output.split('\n').slice(-6).join('\n')}`);
