@@ -1,0 +1,8 @@
+{
+  "zone": "C",
+  "boxes": [
+    { "from": [0, 0, 0], "to": [3, 0, 4], "block": "minecraft:diamond_block" },
+    { "from": [1, 1, 1], "to": [1, 1, 1], "block": "minecraft:lantern" },
+    { "from": [2, 1, 2], "to": [2, 2, 2], "block": "oak_door" }
+  ]
+}
