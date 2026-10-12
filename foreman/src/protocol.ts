@@ -64,6 +64,9 @@ export type WorktreeStatus = z.infer<typeof WorktreeStatus>;
 export const BackendName = z.enum(['sim', 'claude', 'codex']);
 export type BackendName = z.infer<typeof BackendName>;
 
+export const ZoneLetter = z.enum(['A', 'B', 'C', 'D']).describe('One of the four fixed build-site slots defined in the Foreman\'s `site.json`.');
+export type ZoneLetter = z.infer<typeof ZoneLetter>;
+
 export const AuthStatus = z
   .enum(['ok', 'failed', 'unknown', 'checking'])
   .describe('`failed` must be shown loudly (in-world banner): the claude backend cannot run.');
@@ -105,6 +108,23 @@ export const LogEntry = z.object({
 });
 export type LogEntry = z.infer<typeof LogEntry>;
 
+/** A build-site slot's world-space box, resolved from `site.json` when the task was created. */
+export const ZoneBox = z.object({
+  x: z.number().int().describe('world x of the box\'s lowest corner'),
+  y: z.number().int().describe('world y of the box\'s lowest corner (the ground block)'),
+  z: z.number().int().describe('world z of the box\'s lowest corner'),
+  w: z.number().int().positive().describe('size in blocks along x'),
+  h: z.number().int().positive().describe('size in blocks along y'),
+  d: z.number().int().positive().describe('size in blocks along z'),
+});
+export type ZoneBox = z.infer<typeof ZoneBox>;
+
+export const Zone = z.object({
+  letter: ZoneLetter,
+  box: ZoneBox,
+});
+export type Zone = z.infer<typeof Zone>;
+
 export const Task = z.object({
   id: Id.describe('e.g. "t3"'),
   title: z.string(),
@@ -121,6 +141,7 @@ export const Task = z.object({
   ci: CiStatus,
   blockedReason: z.string().optional(),
   summary: z.string().optional().describe('worker/lead summary of the result'),
+  zone: Zone.optional().describe('the build-site slot this task builds (absent: an ordinary coding task)'),
   createdBy: Id.describe('agent id or "user"'),
   createdAt: Ts,
   updatedAt: Ts,
@@ -487,6 +508,8 @@ export const ENTITY_SCHEMAS = {
   Agent,
   LogEntry,
   Task,
+  Zone,
+  ZoneBox,
   Decision,
   DecisionAnswer,
   Repo,
