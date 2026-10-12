@@ -44,7 +44,10 @@ export interface DiffResult extends ParsedDiff {
 }
 
 export interface MergeResult {
+  /** short merge commit id, for messages */
   sha: string;
+  /** full merge commit id */
+  commit: string;
   base: string;
   branch: string;
   files: number;
@@ -625,7 +628,13 @@ export class RepoManager {
     w.status = 'merged';
     await this.removeWorktreeDir(r, w);
     await this.refresh(r.id);
-    return { sha: mergeSha.slice(0, 7), base: w.base, branch: w.branch, files };
+    return { sha: mergeSha.slice(0, 7), commit: mergeSha, base: w.base, branch: w.branch, files };
+  }
+
+  /** A file's text at commit `rev` of a repo, or undefined when that commit has no such file. */
+  async showFile(repoId: string, rev: string, file: string): Promise<string | undefined> {
+    const res = await git(this.require(repoId).path, ['show', `${rev}:${file}`], { allowFail: true });
+    return res.code === 0 ? res.stdout : undefined;
   }
 
   /**

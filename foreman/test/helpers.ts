@@ -4,6 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadConfig, PROJECT_ROOT, type Config } from '../src/config.js';
 import { silentLogger } from '../src/context.js';
+import type { Stamper } from '../src/devbridge.js';
 import { Foreman } from '../src/foreman.js';
 import { Notifier } from '../src/notifier.js';
 import type { Outbound } from '../src/protocol.js';
@@ -38,6 +39,23 @@ export function testConfig(home: string, args: string[] = []): Config {
   return cfg;
 }
 
+/** Records stamped commands instead of sending them to a game. `failAt` rejects that send (0-based). */
+export class FakeStamper implements Stamper {
+  sent: string[] = [];
+  closes = 0;
+  failAt: number | undefined;
+  failWith = 'DevBridge not reachable on ws://127.0.0.1:7879 (connect ECONNREFUSED 127.0.0.1:7879)';
+
+  async send(cmd: string): Promise<void> {
+    if (this.failAt === this.sent.length) throw new Error(this.failWith);
+    this.sent.push(cmd);
+  }
+
+  close(): void {
+    this.closes++;
+  }
+}
+
 export interface Harness {
   fm: Foreman;
   cfg: Config;
@@ -45,9 +63,11 @@ export interface Harness {
   events: Outbound[];
   notifier: Notifier;
   toasts: Array<{ title: string; body: string }>;
+  /** the Foreman's stamper: a FakeStamper unless one was passed, so no test reaches a running game */
+  stamper: Stamper;
 }
 
-export function makeForeman(home: string, args: string[] = []): Harness {
+export function makeForeman(home: string, args: string[] = [], opts: { stamper?: Stamper } = {}): Harness {
   const cfg = testConfig(home, args);
   const toasts: Array<{ title: string; body: string }> = [];
   const notifier = new Notifier({
@@ -59,10 +79,11 @@ export function makeForeman(home: string, args: string[] = []): Harness {
       return true;
     },
   });
-  const fm = new Foreman({ config: cfg, logger: silentLogger, notifier });
+  const stamper = opts.stamper ?? new FakeStamper();
+  const fm = new Foreman({ config: cfg, logger: silentLogger, notifier, stamper });
   const events: Outbound[] = [];
   fm.subscribe((m) => events.push(m));
-  return { fm, cfg, home, events, notifier, toasts };
+  return { fm, cfg, home, events, notifier, toasts, stamper };
 }
 
 export async function until(cond: () => boolean, timeoutMs = 20_000, stepMs = 25): Promise<void> {
