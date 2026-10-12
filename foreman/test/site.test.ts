@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { agentTools, type ToolHooks } from '../src/agents/tools.js';
 import type { Logger } from '../src/context.js';
 import { DEFAULT_SITE, loadSite, resolveZone } from '../src/site.js';
 import { makeForeman, rmrf, tempDir, testConfig, type Harness } from './helpers.js';
@@ -35,6 +36,14 @@ function foremanWithSite(siteJson?: string): Harness {
   }
   h = makeForeman(home, ['--backend', 'sim']);
   return h;
+}
+
+const noHooks: ToolHooks = { onReview() {}, onChangesRequested() {}, onTasksChanged() {}, onMergeRequested() {}, onWaiting() {} };
+
+async function createTask(hn: Harness, args: Record<string, unknown>) {
+  const tool = agentTools(hn.fm, 'marlow', 'lead', noHooks).find((t) => t.name === 'create_task')!;
+  const r = await tool.handler({ description: 'build it', ...args });
+  return { error: r.isError === true, text: r.content.map((c) => c.text).join('\n') };
 }
 
 describe('site.json', () => {
@@ -97,3 +106,48 @@ describe('site.json', () => {
   });
 });
 
+describe('create_task zone', () => {
+  it('resolves a zone letter to its slot box', async () => {
+    const hn = foremanWithSite();
+    const r = await createTask(hn, { title: 'Zone B: west shop', zone: 'b', assignee: 'kit' });
+    expect(r.error, r.text).toBe(false);
+    expect(hn.fm.tasks.get('t1')!.zone).toEqual({ letter: 'B', box: { x: 30, y: 64, z: 10, w: 16, h: 16, d: 14 } });
+  });
+
+  it('creates a task without a zone exactly as before', async () => {
+    const hn = foremanWithSite();
+    const r = await createTask(hn, { title: 'Add a --version flag', assignee: 'kit' });
+    expect(r.error, r.text).toBe(false);
+    expect('zone' in hn.fm.tasks.get('t1')!).toBe(false);
+  });
+
+  it('treats an empty zone as none', async () => {
+    const hn = foremanWithSite();
+    const r = await createTask(hn, { title: 'Add a --version flag', zone: ' ' });
+    expect(r.error, r.text).toBe(false);
+    expect('zone' in hn.fm.tasks.get('t1')!).toBe(false);
+  });
+
+  it('refuses an unknown letter with a plain message', async () => {
+    const hn = foremanWithSite();
+    const r = await createTask(hn, { title: 'Zone E', zone: 'E' });
+    expect(r.error).toBe(true);
+    expect(r.text).toMatch(/no zone "E" on the site; the zones are A, B, C, D/);
+    expect(hn.fm.tasks.list()).toEqual([]);
+  });
+
+  it('refuses a letter the site does not define', async () => {
+    const hn = foremanWithSite(JSON.stringify({ origin: { x: 0, y: 64, z: 0 }, zones: { A: DEFAULT_SITE.zones.A } }));
+    const r = await createTask(hn, { title: 'Zone C', zone: 'C' });
+    expect(r.error).toBe(true);
+    expect(r.text).toMatch(/the zones are A$/m);
+  });
+
+  it('refuses any zone when the site has no slots', async () => {
+    const hn = foremanWithSite('{');
+    const r = await createTask(hn, { title: 'Zone A', zone: 'A' });
+    expect(r.error).toBe(true);
+    expect(r.text).toMatch(/the site has no zone slots/);
+    expect(hn.fm.tasks.list()).toEqual([]);
+  });
+});

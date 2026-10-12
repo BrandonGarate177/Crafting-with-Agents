@@ -6,8 +6,8 @@
 import { z } from 'zod';
 import { formatInbox } from '../bus.js';
 import type { Foreman } from '../foreman.js';
-import type { AgentState, Decision, TaskStatus } from '../protocol.js';
-import { MERGE_OPTIONS } from '../protocol.js';
+import type { AgentState, Decision, TaskStatus, Zone } from '../protocol.js';
+import { MERGE_OPTIONS, ZoneLetter } from '../protocol.js';
 import { isPrBranch } from '../pulls.js';
 import { truncate } from '../util/text.js';
 import { boardSummary } from './prompts.js';
@@ -246,10 +246,20 @@ export function agentTools(fm: Foreman, agentId: string, role: 'lead' | 'worker'
           assignee: z.string().optional().describe('worker id/name'),
           priority: z.number().int().optional(),
           start_branch: z.string().optional().describe('only for a fetched pull request: its branch, e.g. "agentcraft/pr-12"; the worker starts from the contributor\'s commits'),
+          zone: z.string().optional().describe('only for a build task: the build-site slot it builds, a letter A-D from site.json'),
         },
-        async ({ title, description, deps, assignee, priority, start_branch }) => {
+        async ({ title, description, deps, assignee, priority, start_branch, zone }) => {
           const goal = fm.currentGoal();
           if (start_branch && !isPrBranch(start_branch)) return fail(`start_branch must be a fetched pull request branch (agentcraft/pr-<n>), not ${start_branch}`);
+          let slot: Zone | undefined;
+          if (zone?.trim()) {
+            const letter = ZoneLetter.safeParse(zone.trim().toUpperCase());
+            slot = letter.success ? fm.zone(letter.data) : undefined;
+            if (!slot) {
+              const have = Object.keys(fm.site?.zones ?? {});
+              return fail(have.length ? `no zone "${zone}" on the site; the zones are ${have.join(', ')}` : `no zone "${zone}": the site has no zone slots (site.json is invalid or defines none)`);
+            }
+          }
           let who: string | undefined;
           if (assignee) {
             who = fm.resolveAgentId(assignee);
@@ -264,6 +274,7 @@ export function agentTools(fm: Foreman, agentId: string, role: 'lead' | 'worker'
               ...(who ? { assignee: who } : {}),
               ...(priority !== undefined ? { priority } : {}),
               ...(start_branch ? { startBranch: start_branch } : {}),
+              ...(slot ? { zone: slot } : {}),
               createdBy: agentId,
               ...(goal ? { goalId: goal.id } : {}),
               ...(goal?.repoId ? { repoId: goal.repoId } : {}),
