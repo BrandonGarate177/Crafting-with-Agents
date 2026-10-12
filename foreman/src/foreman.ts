@@ -25,8 +25,11 @@ import type {
   Outbound,
   Station,
   Task,
+  Zone,
+  ZoneLetter,
 } from './protocol.js';
 import { RepoError, RepoManager } from './repos.js';
+import { loadSite, resolveZone, type Site } from './site.js';
 import { Store } from './store.js';
 import { TaskError, TaskGraph } from './taskgraph.js';
 import { setUserName, userName } from './user.js';
@@ -76,6 +79,8 @@ export class Foreman {
   readonly notifier: Notifier;
   readonly log: Logger;
   readonly cast: CastMember[];
+  /** the build site's zone slots from site.json (undefined: the file is invalid, no slots) */
+  readonly site: Site | undefined;
   backend: Backend | undefined;
   status: ForemanStatus;
 
@@ -102,6 +107,7 @@ export class Foreman {
     const { cast, source } = loadCast(opts.config.projectRoot);
     this.cast = cast;
     this.log.debug(`cast from ${source}`);
+    this.site = loadSite(opts.config.dataDir, this.log);
     setUserName(opts.config.userName);
     this.status = { version: FOREMAN_VERSION, backend: opts.config.backend, auth: opts.config.backend === 'sim' ? 'ok' : 'unknown', userName: userName() };
     if (opts.config.backend === 'sim') this.status.message = 'Simulated team (sim backend)';
@@ -173,6 +179,11 @@ export class Foreman {
     const a = this.agent(id);
     if (!a) throw new ClientError(`no agent "${id}"`);
     return a;
+  }
+
+  /** The world-space box of a build-site slot, or undefined when site.json has no such slot. */
+  zone(letter: ZoneLetter): Zone | undefined {
+    return resolveZone(this.site, letter);
   }
 
   /** Resolve "@Kit", "kit", "Kit" -> "kit". */

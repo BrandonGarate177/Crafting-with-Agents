@@ -6,7 +6,7 @@
 //  - `done` for a task that owns a worktree happens only through an approved merge (`viaMerge`)
 //  - `cancelled` is terminal for scheduling but can be retried (-> todo)
 import type { Ctx } from './context.js';
-import type { CiStatus, Task, TaskStatus } from './protocol.js';
+import type { CiStatus, Task, TaskStatus, Zone } from './protocol.js';
 
 export class TaskError extends Error {
   constructor(message: string) {
@@ -25,6 +25,8 @@ export interface CreateTaskInput {
   priority?: number;
   /** the worker's branch starts from this branch (e.g. a fetched pull request) instead of the base */
   startBranch?: string;
+  /** the build-site slot this task builds (see site.ts) */
+  zone?: Zone;
   createdBy: string;
 }
 
@@ -40,6 +42,8 @@ export interface TaskPatch {
   summary?: string;
   blockedReason?: string | null;
   repoId?: string;
+  /** null clears it */
+  zone?: Zone | null;
 }
 
 const TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
@@ -98,6 +102,7 @@ export class TaskGraph {
     if (input.repoId) task.repoId = input.repoId;
     if (input.goalId) task.goalId = input.goalId;
     if (input.startBranch) task.startBranch = input.startBranch;
+    if (input.zone) task.zone = structuredClone(input.zone);
     this.tasks.push(task);
     this.touch(task);
     return task;
@@ -130,6 +135,10 @@ export class TaskGraph {
     if (patch.blockedReason !== undefined) {
       if (patch.blockedReason === null) delete t.blockedReason;
       else t.blockedReason = patch.blockedReason;
+    }
+    if (patch.zone !== undefined) {
+      if (patch.zone === null) delete t.zone;
+      else t.zone = structuredClone(patch.zone);
     }
     this.touch(t);
     return t;

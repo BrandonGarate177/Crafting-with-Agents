@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import type { Zone } from '../src/protocol.js';
 import { makeForeman, rmrf, tempDir, type Harness } from './helpers.js';
 
 let h: Harness;
@@ -118,5 +119,59 @@ describe('TaskGraph', () => {
     const goalEvents = events.filter((e) => e.type === 'goal.upsert');
     const last = goalEvents[goalEvents.length - 1];
     expect(last && last.type === 'goal.upsert' && last.goal.status).toBe('done');
+  });
+});
+
+describe('TaskGraph zones', () => {
+  const zoneB: Zone = { letter: 'B', box: { x: 30, y: 64, z: 10, w: 16, h: 16, d: 14 } };
+  const zoneC: Zone = { letter: 'C', box: { x: 46, y: 64, z: 10, w: 16, h: 16, d: 14 } };
+
+  it('keeps a zone through create and update, and clears it with null', () => {
+    const { fm } = setup();
+    const a = fm.tasks.create({ title: 'Zone B: west shop', zone: zoneB, createdBy: 'marlow' });
+    expect(a.zone).toEqual(zoneB);
+    expect(a.zone).not.toBe(zoneB); // stored as a copy
+    fm.tasks.update(a.id, { title: 'Zone B: bakery', assignee: 'kit', priority: 5 });
+    expect(fm.tasks.get(a.id)!.zone).toEqual(zoneB);
+    fm.tasks.update(a.id, { zone: zoneC });
+    expect(fm.tasks.get(a.id)!.zone).toEqual(zoneC);
+    fm.tasks.setStatus(a.id, 'doing');
+    expect(fm.tasks.get(a.id)!.zone).toEqual(zoneC);
+    fm.tasks.update(a.id, { zone: null });
+    expect('zone' in fm.tasks.get(a.id)!).toBe(false);
+  });
+
+  it('leaves tasks without a zone untouched', () => {
+    const { fm } = setup();
+    const a = fm.tasks.create({ title: 'Add a --version flag', createdBy: 'marlow' });
+    expect('zone' in a).toBe(false);
+    fm.tasks.update(a.id, { description: 'print it', assignee: 'kit' });
+    fm.tasks.update(a.id, { zone: null });
+    expect('zone' in fm.tasks.get(a.id)!).toBe(false);
+    expect(JSON.stringify(fm.tasks.get(a.id))).not.toContain('zone');
+  });
+
+  it('broadcasts the zone on task.upsert, and only for tasks that have one', () => {
+    const { fm, events } = setup();
+    const a = fm.tasks.create({ title: 'Zone B', zone: zoneB, createdBy: 'marlow' });
+    const b = fm.tasks.create({ title: 'plain', createdBy: 'marlow' });
+    const upserts = events.flatMap((e) => (e.type === 'task.upsert' ? [e.task] : []));
+    expect(upserts.find((t) => t.id === a.id)!.zone).toEqual(zoneB);
+    expect('zone' in upserts.find((t) => t.id === b.id)!).toBe(false);
+    fm.tasks.update(a.id, { zone: null });
+    const last = events.filter((e) => e.type === 'task.upsert').pop();
+    expect(last?.type === 'task.upsert' && 'zone' in last.task).toBe(false);
+  });
+
+  it('keeps zones across a save and reload', async () => {
+    const { fm } = setup();
+    const a = fm.tasks.create({ title: 'Zone B', zone: zoneB, createdBy: 'marlow' });
+    const b = fm.tasks.create({ title: 'plain', createdBy: 'marlow' });
+    await fm.close();
+    h = makeForeman(home, ['--backend', 'sim']);
+    expect(h.fm.tasks.get(a.id)!.zone).toEqual(zoneB);
+    expect('zone' in h.fm.tasks.get(b.id)!).toBe(false);
+    const snap = h.fm.snapshot();
+    expect(snap.type === 'snapshot' && snap.tasks.find((t) => t.id === a.id)!.zone).toEqual(zoneB);
   });
 });

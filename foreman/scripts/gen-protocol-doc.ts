@@ -42,6 +42,7 @@ const ENUMS: Record<string, AnySchema> = {
   WorktreeStatus: P.WorktreeStatus,
   BackendName: P.BackendName,
   AuthStatus: P.AuthStatus,
+  ZoneLetter: P.ZoneLetter,
 };
 for (const [name, schema] of Object.entries(ENUMS)) NAMES.set(schema, name);
 

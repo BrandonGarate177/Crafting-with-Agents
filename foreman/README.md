@@ -312,6 +312,7 @@ spawns git with an empty environment); the policy refuses every command it can s
 <AGENTCRAFT_HOME>/<profile>/
   state.json             agents, tasks, decisions, repos, goals, feed, messages, sessions (atomic writes)
   foreman.json           pid/port of the Foreman running this profile
+  site.json              build-site zone slots A-D (default city block written on first start)
   logs/<agent>.jsonl     agent logs (snapshots carry the last 60 lines per agent); rotated at 8 MB
                          into <agent>.1.jsonl (one old file kept); start-up reads only their ends
   memory/shared/*.md     shared notes (hand-editable)

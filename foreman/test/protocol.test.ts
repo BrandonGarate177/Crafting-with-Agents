@@ -7,6 +7,7 @@ import {
   PROTOCOL_VERSION,
   SERVER_MESSAGES,
   ServerMessage,
+  Task,
 } from '../src/protocol.js';
 import { CLIENT_EXAMPLES, SERVER_EXAMPLES } from '../src/protocol-examples.js';
 
@@ -65,6 +66,31 @@ describe('protocol v1', () => {
     const r = parseClientMessage({ v: 1, type: 'hello', modVersion: '0.1', protocol: 1, futureField: 42 });
     expect(r.ok).toBe(true);
     if (r.ok) expect('futureField' in r.msg).toBe(false);
+  });
+
+  it('accepts a task with or without a zone, and round-trips the zone through task.upsert', () => {
+    const task = (SERVER_EXAMPLES['task.upsert'] as { task: Record<string, unknown> }).task;
+    expect('zone' in task).toBe(false);
+    expect(Task.safeParse(task).success).toBe(true);
+    const zoned = { ...task, zone: { letter: 'B', box: { x: 30, y: 64, z: 10, w: 16, h: 16, d: 14 } } };
+    expect(Task.safeParse(zoned).success).toBe(true);
+    const r = parseServerMessage(JSON.stringify({ v: 1, type: 'task.upsert', task: zoned }));
+    expect(r.ok, r.ok ? '' : r.error).toBe(true);
+    if (r.ok && r.msg.type === 'task.upsert') expect(r.msg.task.zone).toEqual(zoned.zone);
+    const plain = parseServerMessage(JSON.stringify({ v: 1, type: 'task.upsert', task }));
+    expect(plain.ok).toBe(true);
+    if (plain.ok && plain.msg.type === 'task.upsert') expect('zone' in plain.msg.task).toBe(false);
+  });
+
+  it('rejects a zone with an unknown letter or a bad box', () => {
+    const task = (SERVER_EXAMPLES['task.upsert'] as { task: Record<string, unknown> }).task;
+    const box = { x: 30, y: 64, z: 10, w: 16, h: 16, d: 14 };
+    expect(Task.safeParse({ ...task, zone: { letter: 'E', box } }).success).toBe(false);
+    expect(Task.safeParse({ ...task, zone: { letter: 'b', box } }).success).toBe(false);
+    expect(Task.safeParse({ ...task, zone: { letter: 'B', box: { ...box, w: 0 } } }).success).toBe(false);
+    expect(Task.safeParse({ ...task, zone: { letter: 'B', box: { ...box, x: 1.5 } } }).success).toBe(false);
+    expect(Task.safeParse({ ...task, zone: { letter: 'B' } }).success).toBe(false);
+    expect(Task.safeParse({ ...task, zone: null }).success).toBe(false);
   });
 
   it('exposes protocol version 1', () => {

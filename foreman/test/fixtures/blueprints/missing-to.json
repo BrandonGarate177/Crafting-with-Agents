@@ -1,0 +1,7 @@
+{
+  "zone": "C",
+  "boxes": [
+    { "from": [0, 0, 0], "to": [3, 0, 4], "block": "minecraft:cobblestone" },
+    { "from": [1, 1, 1], "block": "minecraft:glass" }
+  ]
+}

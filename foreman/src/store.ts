@@ -6,6 +6,7 @@
 //                               8 MB into <agentId>.1.jsonl (one old file kept)
 //   <dir>/foreman.json          {pid, port, ...} of the Foreman running this profile (see runfile.ts)
 //   <dir>/memory/**.md          markdown memory (see memory.ts)
+//   <dir>/site.json             build-site zone slots (see site.ts)
 //   <dir>/worktrees/<repo>/<wt> git worktrees for workers (see repos.ts)
 //
 // state.json is written atomically (temp + fsync + rename), debounced, and flushed on exit.
