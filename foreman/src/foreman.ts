@@ -3,12 +3,14 @@
 // it ClientMessages and subscribes to outbound protocol messages.
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseBlueprint } from './blueprint.js';
 import { MessageBus } from './bus.js';
 import { loadCast, type CastMember } from './cast.js';
 import type { Config } from './config.js';
 import { FOREMAN_VERSION } from './config.js';
 import { consoleLogger, type Ctx, type Logger } from './context.js';
 import { DecisionError, DecisionQueue, type CreateDecisionInput } from './decisions.js';
+import { DevBridgeStamper, devBridgePort, type Stamper } from './devbridge.js';
 import { Memory, MemoryError } from './memory.js';
 import { Notifier } from './notifier.js';
 import type {
@@ -62,6 +64,8 @@ export interface ForemanOptions {
   config: Config;
   logger?: Logger;
   notifier?: Notifier;
+  /** where merged zones are stamped (default: the game's DevBridge on AGENTCRAFT_DEV_PORT) */
+  stamper?: Stamper;
   now?: () => number;
 }
 
@@ -81,6 +85,8 @@ export class Foreman {
   readonly cast: CastMember[];
   /** the build site's zone slots from site.json (undefined: the file is invalid, no slots) */
   readonly site: Site | undefined;
+  /** sends a merged zone task's fills to the game */
+  readonly stamper: Stamper;
   backend: Backend | undefined;
   status: ForemanStatus;
 
@@ -108,6 +114,7 @@ export class Foreman {
     this.cast = cast;
     this.log.debug(`cast from ${source}`);
     this.site = loadSite(opts.config.dataDir, this.log);
+    this.stamper = opts.stamper ?? new DevBridgeStamper({ port: devBridgePort() });
     setUserName(opts.config.userName);
     this.status = { version: FOREMAN_VERSION, backend: opts.config.backend, auth: opts.config.backend === 'sim' ? 'ok' : 'unknown', userName: userName() };
     if (opts.config.backend === 'sim') this.status.message = 'Simulated team (sim backend)';
@@ -405,9 +412,17 @@ export class Foreman {
     if (option === 'Merge') {
       try {
         const res = await this.repos.merge(d, task ? { commitMessage: `${task.id}: ${task.title}${task.summary ? `\n\n${task.summary}` : ''}` } : {});
+        const stamp = task?.zone && d.repoId ? await this.stampZone(task.zone, d.repoId, res.commit) : undefined;
         if (task) this.tasks.setStatus(task.id, 'done', { viaMerge: true, force: task.status !== 'review' });
         this.bus.feed('merge', `Merged ${res.branch} into ${res.base} (${res.sha}, ${res.files} file${res.files === 1 ? '' : 's'})`, { agentId: d.agentId });
         this.notify('info', `Merged ${res.branch} into ${res.base}`);
+        if (stamp?.ok) this.bus.feed('merge', stamp.text, { agentId: d.agentId });
+        else if (stamp) {
+          // the merge stands: the zone can be stamped again by hand once the game is up
+          this.log.warn(`${task!.id}: ${stamp.text}`);
+          this.bus.feed('error', stamp.text, { agentId: d.agentId });
+          this.notify('warn', truncate(stamp.text, 160));
+        }
       } catch (e) {
         if (e instanceof RepoError && e.code === 'empty' && task && d.repoId && d.worktree) {
           // nothing to merge (a report or investigation): the task is simply done
@@ -459,6 +474,42 @@ export class Foreman {
       }
       this.bus.feed('merge', `Rejected ${d.worktree ?? 'branch'} (branch kept for recovery)`, { agentId: d.agentId });
     }
+  }
+
+  /**
+   * Stamp a merged zone into the world: the blueprint is read from the merge commit (the worktree
+   * is gone by now) and exactly the parser's fills are sent, in order. Never throws, since the merge
+   * stands either way: a failure comes back as the line to show.
+   */
+  private async stampZone(zone: Zone, repoId: string, commit: string): Promise<{ ok: boolean; text: string }> {
+    const file = `zones/${zone.letter}.json`;
+    let fills: string[];
+    let notes: string[];
+    try {
+      const text = await this.repos.showFile(repoId, commit, file);
+      const bp = text === undefined ? { ok: false as const, error: `${file}: not in the merged commit` } : parseBlueprint(text, zone, file);
+      if (!bp.ok) return { ok: false, text: `Zone ${zone.letter} not stamped: ${bp.error}` };
+      ({ fills, notes } = bp);
+    } catch (e) {
+      return { ok: false, text: `Zone ${zone.letter} not stamped: could not read ${file} (${(e as Error).message})` };
+    }
+    let sent = 0;
+    try {
+      for (const cmd of fills) {
+        await this.stamper.send(cmd);
+        sent++;
+      }
+    } catch (e) {
+      const why = (e as Error).message;
+      return { ok: false, text: sent ? `Zone ${zone.letter} stamped only partly (${sent} of ${fills.length} fills): ${why}` : `Zone ${zone.letter} not stamped: ${why}` };
+    } finally {
+      try {
+        this.stamper.close?.();
+      } catch (e) {
+        this.log.warn(`stamper close: ${(e as Error).message}`);
+      }
+    }
+    return { ok: true, text: `Stamped zone ${zone.letter}: ${fills.length} fill${fills.length === 1 ? '' : 's'}${notes.length ? `. ${notes.join(' ')}` : ''}` };
   }
 
   // ---- foreman status -------------------------------------------------------------------------

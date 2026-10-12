@@ -99,6 +99,7 @@ most ~100 ms of state, and interrupted agent turns resume on the next start.
 | `--repo-poll-ms` | `10000` | how often checkouts are checked for head/dirty changes |
 | `--merge-style merge\|squash` / `AGENTCRAFT_MERGE_STYLE` | `merge` | approved merges: a merge commit that keeps the agents' commits, or one squashed commit (see Safety guarantees) |
 | `--no-sign-merges` / `AGENTCRAFT_SIGN_MERGES=0` | signed if your git config signs (claude) | never sign approved merge commits; the sim never signs |
+| `AGENTCRAFT_DEV_PORT` | `7879` | the mod's DevBridge, where merged zones are stamped (127.0.0.1 only) |
 | sim: `--speed`, `--seed`, `--autostart`, `--showcase [late]`, `--auto-answer`, `--no-ambient` | | |
 
 `<home>/config.json` can hold the same settings (`{"backend":"claude","claude":{"workers":["kit","wren"]}}`).
@@ -159,6 +160,9 @@ agent reads with its shell).
    If the base moved on and the merge would conflict, the worker merges the base into its branch,
    resolves it, and the task comes back for review. That is what lets the lead plan tasks that
    touch the same files (a new CLI case, a help line) to run in parallel instead of in a chain.
+   **Merge** on a zone task also stamps the zone: its `zones/<letter>.json` blueprint, read from the
+   merge commit, becomes one `/fill` per box, sent in order over the mod's DevBridge. If the game
+   is closed or the blueprint does not parse, the merge stands and the feed says the zone was not stamped.
 
 A task that changed no files (a report, an investigation) has nothing to merge: `request_merge`
 closes it as done (worktree abandoned, branch kept) instead of asking you to approve an empty
