@@ -1,6 +1,7 @@
 // System-prompt appendices and job prompts for the claude backend.
 import type { Foreman } from '../foreman.js';
-import type { Goal, Task, Worktree } from '../protocol.js';
+import type { Goal, Task, Worktree, Zone } from '../protocol.js';
+import { BLOCK_PALETTE, FALLBACK_BLOCK, MAX_BOXES } from '../blueprint.js';
 import { truncate } from '../util/text.js';
 import { userName } from '../user.js';
 import { isPrBranch, pullBriefs, type PullRequest } from '../pulls.js';
@@ -39,6 +40,62 @@ How to work
 - Never git push, never install global tools, never change files outside your worktree. Committing is optional (the Foreman commits your work when ${userName()} approves the merge).
 - Stay on your branch in this worktree: do not check out other branches, edit .git, or point git elsewhere (GIT_DIR and friends); those need ${userName()}'s permission. Your commits are made as AgentCraft ${fm.nameOf(agentId)} and are never signed (no -S).
 - When done: update_task(task_id, status "review", summary: what changed + how you tested). If you cannot finish: update_task(status "blocked", blocked_reason). Then end your turn.
+`.trim();
+}
+
+function zoneSize(zone: Zone): string {
+  const { w, h, d } = zone.box;
+  return `${w} wide (x) by ${h} tall (y) by ${d} deep (z)`;
+}
+
+/** The worker system prompt for a zone task: write one blueprint file, nothing else (MVP spec, "Prompts"). */
+export function zoneWorkerSystemPrompt(fm: Foreman, agentId: string, wt: Worktree, zone: Zone): string {
+  const { letter } = zone;
+  const { w, h, d } = zone.box;
+  const file = `zones/${letter}.json`;
+  // the spec's example, trimmed: a solid block of walls with the inside carved out and a door
+  const example = JSON.stringify({
+    zone: letter,
+    boxes: [
+      { from: [0, 0, 0], to: [8, 0, 8], block: 'minecraft:stone_bricks' },
+      { from: [0, 1, 0], to: [8, 4, 8], block: 'minecraft:spruce_planks' },
+      { from: [1, 1, 1], to: [7, 3, 7], block: 'minecraft:air' },
+      { from: [4, 1, 0], to: [4, 2, 0], block: 'minecraft:air' },
+    ],
+  }, null, 2).replace(/\[\s+(-?\d+),\s+(-?\d+),\s+(-?\d+)\s+\]/g, '[$1, $2, $3]');
+  return `
+# You are ${fm.nameOf(agentId)}, a builder on an AgentCraft team led by Marlow
+The user is ${userName()}. You work ONLY inside your git worktree:
+  ${wt.path}
+on branch ${wt.branch} (based on ${wt.base}). Write your file there; never touch anything outside it.
+There is no remote for you: never git fetch, pull or push (git network access is disabled).
+
+You are a builder. Your task card names one zone, its box size, a palette and what it must connect to. Write \`${file}\` as a list of boxes in zone-local coordinates, following the format exactly. Build only what the brief says. If the brief does not say, pick the simplest reading and move on. Do not ask questions. Do not add features. Do not touch any other file. When the file parses, you are done.
+
+Your zone
+- Zone ${letter}: ${zoneSize(zone)}.
+- Coordinates are zone-local: [0, 0, 0] is the zone's corner, y is up, y 0 is the ground layer.
+- x runs 0 to ${w - 1}, y runs 0 to ${h - 1}, z runs 0 to ${d - 1}.
+
+The file: ${file}
+- One JSON object: "zone" is "${letter}", "boxes" is a list of boxes.
+- A box is {"from": [x, y, z], "to": [x, y, z], "block": "<block id>"}: every block from one corner to the other, both included, is that block.
+- Later boxes overwrite earlier ones, so fill a solid shape first, then carve rooms, doors and windows out of it with "minecraft:air".
+- Plain JSON only. The first character of the file is { and the last is }. No markdown code fences (no \`\`\`), no comments, no trailing commas, no text before or after the JSON.
+This example only shows the format. Build what your task card says, not this:
+${example}
+
+Rules the Foreman checks
+- Every coordinate inside your zone. Anything outside is clamped to the zone's edge, and review sees it.
+- At most ${MAX_BOXES} boxes. Boxes after the ${MAX_BOXES}th are dropped.
+- Blocks only from this palette, written exactly like this: ${BLOCK_PALETTE.join(', ')}. Any other block becomes ${FALLBACK_BLOCK}.
+- The file must parse. If it does not, the task comes back to you with the parse error.
+
+How to work
+- Write ${file} with the Write tool. There are no tests to run and no other files to read or change.
+- Never call ask_user. Never git push, never install anything, never change files outside your worktree. Committing is optional (the Foreman commits your work when ${userName()} approves the merge).
+- Stay on your branch in this worktree: do not check out other branches, edit .git, or point git elsewhere (GIT_DIR and friends). Your commits are made as AgentCraft ${fm.nameOf(agentId)} and are never signed (no -S).
+- When done: update_task(task_id, status "review", summary: what you built, one or two lines). If you cannot write the file at all: update_task(status "blocked", blocked_reason). Then end your turn.
 `.trim();
 }
 
@@ -93,9 +150,11 @@ export function workPrompt(fm: Foreman, task: Task, goal: Goal | undefined, wt: 
     : task.startBranch && isPrBranch(task.startBranch)
       ? `\nThis task is a contributor's pull request: your branch starts from their commits (see \`git log ${wt.base}..HEAD\` and \`git diff ${wt.base}...HEAD\`). Review it like a careful maintainer: is it correct, safe, tested, and does it fit the codebase? Run the relevant tests and builds. Keep the contributor's commits exactly as they are (never rebase, amend or squash them). If it needs changes, make the smallest fix in an extra commit of your own and say what you changed. If it should not be merged, update_task(status "blocked", blocked_reason) explaining why. If it is good as is, say so and send it to review without changes.\n`
       : '';
+  const zone = task.zone ? `Zone: ${task.zone.letter}, ${zoneSize(task.zone)}. Write zones/${task.zone.letter}.json.\n` : '';
+  const finished = task.zone ? `When zones/${task.zone.letter}.json is written` : 'When finished';
   return `Your task: ${task.id} "${task.title}"
 ${task.description ? `\n${task.description}\n` : ''}${handoff}${taskHistory(fm, task)}
-Goal: ${goal?.text ?? '(none)'}
+${zone}Goal: ${goal?.text ?? '(none)'}
 Worktree: ${wt.path} (branch ${wt.branch})
 
 Plan (shared memory):
@@ -104,7 +163,7 @@ ${planText(fm)}
 Task board:
 ${boardSummary(fm, task.goalId)}
 ${inbox ? `\nMessages for you:\n${inbox}\n` : ''}
-Start now. When finished call update_task("${task.id}", status "review", summary).`;
+Start now. ${finished} call update_task("${task.id}", status "review", summary).`;
 }
 
 export function reviewPrompt(
