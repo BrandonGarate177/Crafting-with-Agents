@@ -163,6 +163,10 @@ agent reads with its shell).
    **Merge** on a zone task also stamps the zone: its `zones/<letter>.json` blueprint, read from the
    merge commit, becomes one `/fill` per box, sent in order over the mod's DevBridge. If the game
    is closed or the blueprint does not parse, the merge stands and the feed says the zone was not stamped.
+   The city around the zones is stamped once by hand: `npm run stamp:city` prints the skeleton
+   (`src/city.ts`: road grid, outlined and signed district plots, harbor basin, the market block
+   with its slots staked out) for this profile's `site.json`, `-- --go` sends it over the DevBridge,
+   and `-- --undo --go` puts the meadow back, built zones included.
 
 A task that changed no files (a report, an investigation) has nothing to merge: `request_merge`
 closes it as done (worktree abandoned, branch kept) instead of asking you to approve an empty
@@ -316,7 +320,7 @@ spawns git with an empty environment); the policy refuses every command it can s
 <AGENTCRAFT_HOME>/<profile>/
   state.json             agents, tasks, decisions, repos, goals, feed, messages, sessions (atomic writes)
   foreman.json           pid/port of the Foreman running this profile
-  site.json              build-site zone slots A-D (default city block written on first start)
+  site.json              build-site zone slots A-D (default market block written on first start)
   logs/<agent>.jsonl     agent logs (snapshots carry the last 60 lines per agent); rotated at 8 MB
                          into <agent>.1.jsonl (one old file kept); start-up reads only their ends
   memory/shared/*.md     shared notes (hand-editable)

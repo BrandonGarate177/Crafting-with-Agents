@@ -46,7 +46,7 @@ async function merge(h: Harness, files: Record<string, string>, zone?: ZoneLette
 const feed = (h: Harness): FeedItem[] => h.events.flatMap((e) => (e.type === 'feed.add' ? [e.item] : []));
 const notices = (h: Harness, level: string): string[] => h.events.flatMap((e) => (e.type === 'notify' && e.level === level ? [e.text] : []));
 
-// zone B of the default site is x 30..45, y 64..79, z 10..23
+// zone B of the default site is x 55..70, y 64..79, z 10..23
 const BLUEPRINT = JSON.stringify({
   zone: 'B',
   boxes: [
@@ -63,9 +63,9 @@ describe('stamp on merge', () => {
     const t = await merge(h, { 'zones/B.json': BLUEPRINT }, 'B');
     expect(t.status).toBe('done');
     expect(stamper.sent).toEqual([
-      '/fill 30 64 10 38 64 18 minecraft:cobblestone',
-      '/fill 30 65 10 38 68 18 minecraft:spruce_planks',
-      '/fill 31 65 11 37 68 17 minecraft:air',
+      '/fill 55 64 10 63 64 18 minecraft:cobblestone',
+      '/fill 55 65 10 63 68 18 minecraft:spruce_planks',
+      '/fill 56 65 11 62 68 17 minecraft:air',
     ]);
     const bp = parseBlueprint(BLUEPRINT, t.zone!);
     expect(bp.ok && bp.fills).toEqual(stamper.sent);
@@ -151,8 +151,8 @@ describe('stamp on merge', () => {
     });
     const t = await merge(h, { 'zones/B.json': noted }, 'B');
     expect(t.status).toBe('done');
-    // the stamper sends exactly the clamped, replaced fills: nothing past x 45, no gold
-    expect(stamper.sent).toEqual(['/fill 30 64 10 45 64 12 minecraft:cobblestone', '/fill 30 65 10 31 65 11 minecraft:stone_bricks']);
+    // the stamper sends exactly the clamped, replaced fills: nothing past x 70, no gold
+    expect(stamper.sent).toEqual(['/fill 55 64 10 70 64 12 minecraft:cobblestone', '/fill 55 65 10 56 65 11 minecraft:stone_bricks']);
     const bp = parseBlueprint(noted, t.zone!, 'zones/B.json');
     expect(bp.ok).toBe(true);
     if (!bp.ok) return;

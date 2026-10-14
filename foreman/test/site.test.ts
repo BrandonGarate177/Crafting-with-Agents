@@ -69,10 +69,10 @@ describe('site.json', () => {
   });
 
   it('resolves the default slots to the city block east of the studio', () => {
-    expect(resolveZone(DEFAULT_SITE, 'A')).toEqual({ letter: 'A', box: { x: 30, y: 64, z: 24, w: 32, h: 8, d: 4 } });
-    expect(resolveZone(DEFAULT_SITE, 'B')).toEqual({ letter: 'B', box: { x: 30, y: 64, z: 10, w: 16, h: 16, d: 14 } });
-    expect(resolveZone(DEFAULT_SITE, 'C')).toEqual({ letter: 'C', box: { x: 46, y: 64, z: 10, w: 16, h: 16, d: 14 } });
-    expect(resolveZone(DEFAULT_SITE, 'D')).toEqual({ letter: 'D', box: { x: 30, y: 64, z: 28, w: 32, h: 10, d: 14 } });
+    expect(resolveZone(DEFAULT_SITE, 'A')).toEqual({ letter: 'A', box: { x: 55, y: 64, z: 24, w: 32, h: 8, d: 4 } });
+    expect(resolveZone(DEFAULT_SITE, 'B')).toEqual({ letter: 'B', box: { x: 55, y: 64, z: 10, w: 16, h: 16, d: 14 } });
+    expect(resolveZone(DEFAULT_SITE, 'C')).toEqual({ letter: 'C', box: { x: 71, y: 64, z: 10, w: 16, h: 16, d: 14 } });
+    expect(resolveZone(DEFAULT_SITE, 'D')).toEqual({ letter: 'D', box: { x: 55, y: 64, z: 28, w: 32, h: 10, d: 14 } });
     expect(resolveZone(undefined, 'A')).toBeUndefined();
   });
 
@@ -95,7 +95,7 @@ describe('site.json', () => {
     const { fm, cfg } = foremanWithSite();
     expect(fm.site).toEqual(DEFAULT_SITE);
     expect(fs.existsSync(path.join(cfg.dataDir, 'site.json'))).toBe(true);
-    expect(fm.zone('C')).toEqual({ letter: 'C', box: { x: 46, y: 64, z: 10, w: 16, h: 16, d: 14 } });
+    expect(fm.zone('C')).toEqual({ letter: 'C', box: { x: 71, y: 64, z: 10, w: 16, h: 16, d: 14 } });
   });
 
   it('starts with no slots when the file is malformed', () => {
@@ -111,7 +111,7 @@ describe('create_task zone', () => {
     const hn = foremanWithSite();
     const r = await createTask(hn, { title: 'Zone B: west shop', zone: 'b', assignee: 'kit' });
     expect(r.error, r.text).toBe(false);
-    expect(hn.fm.tasks.get('t1')!.zone).toEqual({ letter: 'B', box: { x: 30, y: 64, z: 10, w: 16, h: 16, d: 14 } });
+    expect(hn.fm.tasks.get('t1')!.zone).toEqual({ letter: 'B', box: { x: 55, y: 64, z: 10, w: 16, h: 16, d: 14 } });
   });
 
   it('creates a task without a zone exactly as before', async () => {

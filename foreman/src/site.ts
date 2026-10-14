@@ -3,7 +3,9 @@
 //   <dataDir>/site.json   { "origin": {x, y, z}, "zones": { "A": {name, x, z, w, d, h}, ... } }
 //
 // Slot x/z are offsets from `origin`; y is the ground block, so a slot's box starts at origin.y.
-// A fresh profile gets the default city block (east of the studio, x 30..61, z 10..41, ground 64).
+// A fresh profile gets the default market block (x 55..86, z 10..41, ground 64): east of the studio's
+// box (StudioHqBuilder.SITE, x up to 46), so a studio republish never touches it, and inside the city
+// skeleton that src/city.ts lays out around it.
 // A file that does not parse leaves the Foreman with no slots: zone tasks are refused, everything
 // else runs as before.
 import fs from 'node:fs';
@@ -26,7 +28,7 @@ export const Site = z.object({
 export type Site = z.infer<typeof Site>;
 
 export const DEFAULT_SITE: Site = {
-  origin: { x: 30, y: 64, z: 10 },
+  origin: { x: 55, y: 64, z: 10 },
   zones: {
     A: { name: 'Main street segment', x: 0, z: 14, w: 32, d: 4, h: 8 },
     B: { name: 'West building', x: 0, z: 0, w: 16, d: 14, h: 16 },
