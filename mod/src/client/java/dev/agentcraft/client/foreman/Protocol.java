@@ -153,6 +153,23 @@ public final class Protocol {
 		}
 	}
 
+	/** A build-site slot's world box: lowest corner (y is the ground block), then size along x, y, z. */
+	public record ZoneBox(int x, int y, int z, int w, int h, int d) {
+	}
+
+	public record Zone(String letter, ZoneBox box) {
+	}
+
+	/** The Foreman's build site in world space ({@code site.json}). */
+	public record BuildSite(Point origin, List<Zone> zones) {
+		public BuildSite {
+			zones = zones == null ? List.of() : zones.stream().filter(z -> z != null && z.box() != null).toList();
+		}
+	}
+
+	public record Point(int x, int y, int z) {
+	}
+
 	public record DecisionAnswer(@Nullable String option, @Nullable String text, long ts) {
 	}
 
@@ -252,7 +269,7 @@ public final class Protocol {
 	// ------------------------------------------------------------------ Foreman -> mod messages
 
 	public record Snapshot(ForemanStatus foreman, List<Agent> agents, List<Task> tasks, List<Decision> decisions, List<Repo> repos,
-		List<MemoryEntry> memory, @Nullable Goal goal, List<Goal> goals, List<FeedItem> feed, List<AgentLogs> logs) {
+		List<MemoryEntry> memory, @Nullable Goal goal, List<Goal> goals, List<FeedItem> feed, List<AgentLogs> logs, @Nullable BuildSite site) {
 		public Snapshot {
 			agents = agents == null ? List.of() : List.copyOf(agents);
 			tasks = tasks == null ? List.of() : List.copyOf(tasks);

@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 import type { Logger } from './context.js';
-import { formatZodError, ZoneLetter, type Zone } from './protocol.js';
+import { formatZodError, ZoneLetter, type BuildSite, type Zone } from './protocol.js';
 import { writeJsonAtomic } from './util/fsx.js';
 
 const Int = z.number().int();
@@ -67,4 +67,11 @@ export function resolveZone(site: Site | undefined, letter: ZoneLetter): Zone | 
   if (!site || !slot) return undefined;
   const { origin } = site;
   return { letter, box: { x: origin.x + slot.x, y: origin.y, z: origin.z + slot.z, w: slot.w, h: slot.h, d: slot.d } };
+}
+
+/** The whole site in world space, A to D, for the mod's snapshot. Undefined when there are no slots. */
+export function siteInWorld(site: Site | undefined): BuildSite | undefined {
+  if (!site) return undefined;
+  const zones = ZoneLetter.options.flatMap((letter) => resolveZone(site, letter) ?? []);
+  return { origin: { ...site.origin }, zones };
 }

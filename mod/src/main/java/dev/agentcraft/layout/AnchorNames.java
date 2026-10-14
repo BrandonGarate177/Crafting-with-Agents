@@ -17,6 +17,7 @@ import java.util.List;
  * goal_atrium         centre of the Goal Atrium floor
  * entrance            just inside the main door, facing in
  * spawn               where the player should start
+ * site_button         the button that takes the player out to the build site
  * cam_&lt;name&gt;          QA camera points (eye position + yaw/pitch), e.g. cam_overview, cam_blockrow
  * </pre>
  */
@@ -38,6 +39,7 @@ public final class AnchorNames {
 	public static final String GOAL_ATRIUM = "goal_atrium";
 	public static final String ENTRANCE = "entrance";
 	public static final String SPAWN = "spawn";
+	public static final String SITE_BUTTON = "site_button";
 
 	/** Protocol {@code Agent.station} values that map to shared station anchors (desk is per agent). */
 	public static final List<String> SHARED_STATIONS = List.of(LIBRARY, TERMINAL, TESTBENCH, MERGESTATION, MEETING, LOUNGE, USER);
