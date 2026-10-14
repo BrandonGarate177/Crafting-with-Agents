@@ -104,6 +104,13 @@ export const SERVER_EXAMPLES: Ex<ServerMessage> = {
     goals: [{ id: 'g1', text: 'Add #tags to pocket-notes', progress: 0.39, status: 'active', repoId: 'demo-app', createdAt: ts, updatedAt: ts + 120_000 }],
     feed: [{ ts: ts + 5_000, kind: 'plan', text: 'Marlow planned the goal into 9 tasks', agentId: 'marlow' }],
     logs: [{ agentId: 'kit', entries: [{ ts: ts + 90_000, kind: 'tool', text: 'Edit src/tags.ts' }] }],
+    site: {
+      origin: { x: 30, y: 64, z: 10 },
+      zones: [
+        { letter: 'A', box: { x: 30, y: 64, z: 24, w: 32, h: 8, d: 4 } },
+        { letter: 'B', box: { x: 30, y: 64, z: 10, w: 16, h: 16, d: 14 } },
+      ],
+    },
   },
   'agent.upsert': { v: 1, type: 'agent.upsert', agent },
   'agent.log': {

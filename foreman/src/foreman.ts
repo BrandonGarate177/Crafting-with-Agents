@@ -31,7 +31,7 @@ import type {
   ZoneLetter,
 } from './protocol.js';
 import { RepoError, RepoManager } from './repos.js';
-import { loadSite, resolveZone, type Site } from './site.js';
+import { loadSite, resolveZone, siteInWorld, type Site } from './site.js';
 import { Store } from './store.js';
 import { TaskError, TaskGraph } from './taskgraph.js';
 import { setUserName, userName } from './user.js';
@@ -529,6 +529,7 @@ export class Foreman {
     const open = decisions.filter((d) => d.status === 'open');
     const recent = decisions.filter((d) => d.status !== 'open').slice(-20);
     const goal = this.currentGoal();
+    const site = siteInWorld(this.site);
     return {
       type: 'snapshot',
       foreman: { ...this.status },
@@ -541,6 +542,7 @@ export class Foreman {
       goals: this.goals().map((g) => ({ ...g })),
       feed: this.store.data.feed.slice(-200),
       logs: this.agents().map((a) => ({ agentId: a.id, entries: this.store.logTail(a.id).slice(-60) })),
+      ...(site ? { site } : {}),
     };
   }
 

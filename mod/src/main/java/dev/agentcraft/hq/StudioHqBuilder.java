@@ -15,13 +15,19 @@ import dev.agentcraft.layout.Anchors;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CopperBulbBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.WallSignBlock;
+import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BellAttachType;
 import org.jspecify.annotations.Nullable;
@@ -72,6 +78,9 @@ public final class StudioHqBuilder implements HqBuilder {
 	static final int ATRIUM_TOP = 76;
 	/** Spring line of the dome (the timber ring on the wall tops). */
 	static final int SPRING = 77;
+	/** The site button's cell: on the inner face of the east door post of the atrium's south entrance. */
+	static final int SITE_BUTTON_X = AX + 2;
+	static final int SITE_BUTTON_Z = AZ + 8;
 	/** Site box: rebuilt completely, never anything outside it. */
 	static final int[] SITE = {-46, 60, -36, 46, 100, 54};
 
@@ -182,6 +191,7 @@ public final class StudioHqBuilder implements HqBuilder {
 		BlockState[] previous = PlanStore.load(level.getServer(), ID, SITE, p.size());
 		Plan.Stats st = p.apply(level, previous, options.force());
 		PlanStore.save(level.getServer(), ID, SITE, p.cells());
+		siteSign(level);
 		a.bounds(-HX + 1, FLOOR, HZN + 1, HX - 1, FLOOR + 16, AZ + 8);
 		a.spot(AnchorNames.ENTRANCE, AX, FEET, AZ + 7, 180);
 		a.put(AnchorNames.SPAWN, AX + 0.5, FEET, AZ + 7.5, 180, 0);
@@ -1224,6 +1234,22 @@ public final class StudioHqBuilder implements HqBuilder {
 		// floor lamps by the entrance
 		floorLamp(p, AX - 3, AZ + 7);
 		floorLamp(p, AX + 3, AZ + 7);
+		// the site button on the east door post, inside, with its sign above: it takes the player out to
+		// the build site and back (client SiteFeature)
+		p.set(SITE_BUTTON_X, FEET + 1, SITE_BUTTON_Z, St.facing(Blocks.PALE_OAK_BUTTON, N));
+		p.set(SITE_BUTTON_X, FEET + 2, SITE_BUTTON_Z, Blocks.PALE_OAK_WALL_SIGN.defaultBlockState().setValue(WallSignBlock.FACING, N));
+		a.put(AnchorNames.SITE_BUTTON, SITE_BUTTON_X + 0.5, FEET + 1, SITE_BUTTON_Z + 0.5, 180, 0);
+	}
+
+	/** Writes the site sign's text, which the plan cannot hold, and waxes it so a click does not edit it. */
+	private static void siteSign(ServerLevel level) {
+		SignText want = SignText.EMPTY.asMutable().setLine(1, Component.literal("Visit the site")).asImmutable();
+		if (level.getBlockEntity(new BlockPos(SITE_BUTTON_X, FEET + 2, SITE_BUTTON_Z)) instanceof SignBlockEntity sign) {
+			if (!sign.getText(SignTextSlot.FRONT).equals(want)) {
+				sign.setText(want, SignTextSlot.FRONT);
+			}
+			sign.setWaxed(true);
+		}
 	}
 
 	/**

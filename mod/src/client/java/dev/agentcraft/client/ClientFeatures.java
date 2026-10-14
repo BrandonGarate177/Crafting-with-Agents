@@ -11,6 +11,7 @@ import dev.agentcraft.client.hud.HudFeature;
 import dev.agentcraft.client.library.LibraryFeature;
 import dev.agentcraft.client.monitor.MonitorFeature;
 import dev.agentcraft.client.permissions.PermissionsFeature;
+import dev.agentcraft.client.site.SiteFeature;
 import dev.agentcraft.client.taskwall.TaskWallFeature;
 import dev.agentcraft.client.world.AnchorsDev;
 import dev.agentcraft.client.world.ItemsDev;
@@ -40,6 +41,7 @@ public final class ClientFeatures {
 		DiffFeature.init();
 		LibraryFeature.init();
 		PermissionsFeature.init();
+		SiteFeature.init();      // the site button and the key back to the studio
 		AgentCraft.LOGGER.info("AgentCraft client features initialised");
 	}
 }

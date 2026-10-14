@@ -33,6 +33,7 @@ was verified in game in Phase 2 (`artifacts/shots/phase2_*.png`).
 | `client.diff` | diff specialist | diff/merge review screen, `MergeStationRenderer` |
 | `client.library` | library specialist | memory screen, `MemoryArchiveRenderer` |
 | `client.permissions` | permissions specialist | permission decision UX |
+| `client.site` + `world.SiteVisit` (main) | site | the studio's "Visit the site" button (spectator overlook of the build site) and the key back to the studio |
 | `client.hq` + `hq` (main) | HQ specialist | the real HQ builder (main), world blocks driven by state (client), `StatusLampRenderer` |
 | `client.ui` | core (additive) | kit drawing, style tokens, text utils (screens + world) |
 | `client.world` | core (additive) | `StationRenderer` base, `ServerTasks`, `StationInteractions`, dev helpers |

@@ -7,6 +7,7 @@ import dev.agentcraft.client.foreman.Protocol.AgentLog;
 import dev.agentcraft.client.foreman.Protocol.AgentLogs;
 import dev.agentcraft.client.foreman.Protocol.AgentSay;
 import dev.agentcraft.client.foreman.Protocol.AgentUpsert;
+import dev.agentcraft.client.foreman.Protocol.BuildSite;
 import dev.agentcraft.client.foreman.Protocol.Decision;
 import dev.agentcraft.client.foreman.Protocol.DecisionKind;
 import dev.agentcraft.client.foreman.Protocol.DecisionUpsert;
@@ -70,6 +71,7 @@ public final class ForemanState {
 	private final Deque<FeedItem> feed = new ArrayDeque<>();
 	private final Deque<Notify> notifications = new ArrayDeque<>();
 	private @Nullable Goal goal;
+	private @Nullable BuildSite site;
 	private @Nullable ForemanStatus status;
 	private LinkStatus link;
 	private long revision;
@@ -158,6 +160,11 @@ public final class ForemanState {
 	/** The current (latest) goal, or null. */
 	public @Nullable Goal goal() {
 		return goal;
+	}
+
+	/** The build site from the last snapshot, or null before one arrived or when its site.json is invalid. */
+	public @Nullable BuildSite site() {
+		return site;
 	}
 
 	/** All goals, oldest first. */
@@ -510,6 +517,7 @@ public final class ForemanState {
 		}
 		// speech bubbles are transient: drop the ones of agents that no longer exist
 		lastSay.keySet().retainAll(agents.keySet());
+		site = s.site();
 		status = s.foreman();
 		snapshots++;
 		snapshotAt = System.currentTimeMillis();

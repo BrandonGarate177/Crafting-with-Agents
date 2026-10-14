@@ -3,6 +3,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { agentTools, type ToolHooks } from '../src/agents/tools.js';
 import type { Logger } from '../src/context.js';
+import { parseServerMessage } from '../src/protocol.js';
 import { DEFAULT_SITE, loadSite, resolveZone } from '../src/site.js';
 import { makeForeman, rmrf, tempDir, testConfig, type Harness } from './helpers.js';
 
@@ -103,6 +104,31 @@ describe('site.json', () => {
     expect(fm.site).toBeUndefined();
     expect(fm.zone('A')).toBeUndefined();
     expect(fm.tasks.create({ title: 'still works', createdBy: 'marlow' }).id).toBe('t1');
+  });
+});
+
+describe('snapshot site', () => {
+  it('sends the site to the mod in world space', () => {
+    const site = { origin: { x: 50, y: 64, z: 10 }, zones: { C: { name: 'East', x: 16, z: 0, w: 16, d: 14, h: 16 }, A: { name: 'Street', x: 0, z: 14, w: 32, d: 4, h: 8 } } };
+    const { fm } = foremanWithSite(JSON.stringify(site));
+    const snap = fm.snapshot();
+    const r = parseServerMessage(JSON.stringify({ v: 1, ...snap }));
+    expect(r.ok, r.ok ? '' : r.error).toBe(true);
+    if (!r.ok || r.msg.type !== 'snapshot') throw new Error('no snapshot');
+    expect(r.msg.site).toEqual({
+      origin: { x: 50, y: 64, z: 10 },
+      zones: [
+        { letter: 'A', box: { x: 50, y: 64, z: 24, w: 32, h: 8, d: 4 } },
+        { letter: 'C', box: { x: 66, y: 64, z: 10, w: 16, h: 16, d: 14 } },
+      ],
+    });
+  });
+
+  it('leaves the site out when site.json is invalid', () => {
+    const { fm } = foremanWithSite('{"origin": 3}');
+    const snap = fm.snapshot();
+    expect('site' in snap).toBe(false);
+    expect(parseServerMessage(JSON.stringify({ v: 1, ...snap })).ok).toBe(true);
   });
 });
 

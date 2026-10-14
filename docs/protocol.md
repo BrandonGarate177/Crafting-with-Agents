@@ -28,6 +28,7 @@
 - <a id="worktreestatus"></a>**WorktreeStatus**: `active`, `merged`, `abandoned`
 - <a id="backendname"></a>**BackendName**: `sim`, `claude`, `codex`
 - <a id="authstatus"></a>**AuthStatus**: `ok`, `failed`, `unknown`, `checking` - `failed` must be shown loudly (in-world banner): the claude backend cannot run.
+- <a id="zoneletter"></a>**ZoneLetter**: `A`, `B`, `C`, `D` - One of the four fixed build-site slots defined in the Foreman's `site.json`.
 
 Exact option labels: merge decisions use `Merge`, `Request changes`, `Reject`; permission decisions use `Allow once`, `Always allow for this agent`, `Deny`. Question decisions use agent-supplied options (may be empty: free text).
 
@@ -82,9 +83,28 @@ Exact option labels: merge decisions use `Merge`, `Request changes`, `Reject`; p
 | `ci` | [CiStatus](#cistatus) | yes |  |
 | `blockedReason` | string | no |  |
 | `summary` | string | no | worker/lead summary of the result |
+| `zone` | [Zone](#zone) | no | the build-site slot this task builds (absent: an ordinary coding task) |
 | `createdBy` | string | yes | agent id or "user" |
 | `createdAt` | integer | yes | epoch milliseconds |
 | `updatedAt` | integer | yes | epoch milliseconds |
+
+### <a id="zone"></a>Zone
+
+| field | type | required | notes |
+| --- | --- | --- | --- |
+| `letter` | [ZoneLetter](#zoneletter) | yes | One of the four fixed build-site slots defined in the Foreman's `site.json`. |
+| `box` | [ZoneBox](#zonebox) | yes |  |
+
+### <a id="zonebox"></a>ZoneBox
+
+| field | type | required | notes |
+| --- | --- | --- | --- |
+| `x` | integer | yes | world x of the box's lowest corner |
+| `y` | integer | yes | world y of the box's lowest corner (the ground block) |
+| `z` | integer | yes | world z of the box's lowest corner |
+| `w` | integer | yes | size in blocks along x |
+| `h` | integer | yes | size in blocks along y |
+| `d` | integer | yes | size in blocks along z |
 
 ### <a id="decision"></a>Decision
 
@@ -246,6 +266,7 @@ Full state. Sent in reply to every `hello`; the mod rebuilds its view from it.
 | `goals` | [Goal](#goal)[] | yes | all goals, oldest first |
 | `feed` | [FeedItem](#feeditem)[] | yes | most recent feed items, oldest first (<= 200) |
 | `logs` | [AgentLogs](#agentlogs)[] | yes | recent log tail per agent (<= 60 entries each) |
+| `site` | { origin: { x: integer, y: integer, z: integer }, zones: [Zone](#zone)[] } | no | the build site (absent: `site.json` is invalid, there are no slots) |
 
 ```json
 {
@@ -393,7 +414,38 @@ Full state. Sent in reply to every `hello`; the mod rebuilds its view from it.
         }
       ]
     }
-  ]
+  ],
+  "site": {
+    "origin": {
+      "x": 30,
+      "y": 64,
+      "z": 10
+    },
+    "zones": [
+      {
+        "letter": "A",
+        "box": {
+          "x": 30,
+          "y": 64,
+          "z": 24,
+          "w": 32,
+          "h": 8,
+          "d": 4
+        }
+      },
+      {
+        "letter": "B",
+        "box": {
+          "x": 30,
+          "y": 64,
+          "z": 10,
+          "w": 16,
+          "h": 16,
+          "d": 14
+        }
+      }
+    ]
+  }
 }
 ```
 

@@ -125,6 +125,13 @@ export const Zone = z.object({
 });
 export type Zone = z.infer<typeof Zone>;
 
+/** The build site from `site.json`, resolved to world space, so the mod can point a camera at it. */
+export const BuildSite = z.object({
+  origin: z.object({ x: z.number().int(), y: z.number().int(), z: z.number().int() }).describe('world position of the site\'s corner; y is the ground block'),
+  zones: z.array(Zone).describe('every slot the site defines, A to D, as world boxes'),
+});
+export type BuildSite = z.infer<typeof BuildSite>;
+
 export const Task = z.object({
   id: Id.describe('e.g. "t3"'),
   title: z.string(),
@@ -301,6 +308,7 @@ export const SnapshotMsg = z.object({
   goals: z.array(Goal).describe('all goals, oldest first'),
   feed: z.array(FeedItem).describe('most recent feed items, oldest first (<= 200)'),
   logs: z.array(AgentLogs).describe('recent log tail per agent (<= 60 entries each)'),
+  site: BuildSite.optional().describe('the build site (absent: `site.json` is invalid, there are no slots)'),
 });
 export const AgentUpsertMsg = z.object({ ...envelope('agent.upsert'), agent: Agent });
 export const AgentLogMsg = z.object({ ...envelope('agent.log'), agentId: Id, entries: z.array(LogEntry) });
