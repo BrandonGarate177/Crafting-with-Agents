@@ -26,7 +26,7 @@ const model = arg('model', 'haiku');
 const effort = arg('effort', 'low') as 'low' | 'medium' | 'high';
 
 // zone B of the default site (site.ts DEFAULT_SITE): 16 by 16 by 14
-const zone: Zone = { letter: 'B', box: { x: 30, y: 64, z: 10, w: 16, h: 16, d: 14 } };
+const zone: Zone = { letter: 'B', box: { x: 55, y: 64, z: 10, w: 16, h: 16, d: 14 } };
 const task: Task = {
   id: 't3',
   title: 'Zone B: the east shop',

@@ -16,6 +16,7 @@
     "gen:protocol-doc": "node --import tsx scripts/gen-protocol-doc.ts",
     "check:protocol-doc": "node --import tsx scripts/gen-protocol-doc.ts --check",
     "check:zone-prompt": "node --import tsx scripts/zone-prompt-check.ts",
+    "stamp:city": "node --import tsx scripts/stamp-city.ts",
     "check": "tsc --noEmit && vitest run && node --import tsx scripts/gen-protocol-doc.ts --check"
   },
   "dependencies": {
